@@ -1,7 +1,10 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import type { Exercise, HealthQuizData, WorkoutPlan, WeeklyPlan, WeeklyPlannerConfig, ExerciseDetail } from '../types';
 
-const getAiClient = () => new GoogleGenAI({ apiKey: import.meta.env.GEMINI_API_KEY });
+const getAiClient = () =>
+  new GoogleGenAI({
+    apiKey: import.meta.env.VITE_GEMINI_API_KEY,
+  });
 
 export const generateWorkout = async (bodyPart: string, muscle: string, environment: string): Promise<WorkoutPlan> => {
   const ai = getAiClient();
