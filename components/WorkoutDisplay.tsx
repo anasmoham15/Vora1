@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import type { Exercise, WorkoutPlan } from '../types';
-import { getExerciseDetails } from '../services/exerciseService'; // NEW IMPORT
-import { VideoCameraIcon, ArrowPathIcon } from './Icons';
+import { generateExerciseVideo } from '../services/geminiService';
+import { CheckCircleIcon, VideoCameraIcon, ArrowPathIcon } from './Icons';
 
 interface WorkoutDisplayProps {
   plan: WorkoutPlan;
@@ -14,32 +14,34 @@ const WorkoutDisplay: React.FC<WorkoutDisplayProps> = ({ plan }) => {
     setExercises(plan?.exercises || []);
   }, [plan]);
 
-  const handleFetchTutorial = async (exerciseIndex: number) => {
-    // 1. Set loading state
+  const getEmbedUrl = (url: string) => {
+    if (!url) return '';
+    // Handle standard watch URLs
+    if (url.includes('watch?v=')) {
+        const id = url.split('v=')[1]?.split('&')[0];
+        return `https://www.youtube.com/embed/${id}`;
+    }
+    // Handle shortened youtu.be URLs
+    if (url.includes('youtu.be/')) {
+        const id = url.split('youtu.be/')[1]?.split('?')[0];
+        return `https://www.youtube.com/embed/${id}`;
+    }
+    return url;
+  };
+
+  const handleGenerateVideo = async (exerciseIndex: number) => {
     setExercises(prev => prev.map((ex, i) => 
         i === exerciseIndex ? { ...ex, isVideoLoading: true, videoError: null } : ex
     ));
 
     try {
-      // 2. Call our new ExerciseDB service
-      const details = await getExerciseDetails(exercises[exerciseIndex].name);
-      
-      if (details) {
-        setExercises(prev => prev.map((ex, i) => 
-            i === exerciseIndex ? { 
-              ...ex, 
-              isVideoLoading: false, 
-              videoUrl: details.gifUrl, // This is now the GIF URL
-              // Optionally update instructions if the DB has better ones
-              instructions: details.instructions?.length ? details.instructions : ex.instructions 
-            } : ex
-        ));
-      } else {
-        throw new Error("Not found");
-      }
+      const videoUrl = await generateExerciseVideo(exercises[exerciseIndex].name);
+      setExercises(prev => prev.map((ex, i) => 
+          i === exerciseIndex ? { ...ex, isVideoLoading: false, videoUrl } : ex
+      ));
     } catch (err: any) {
       setExercises(prev => prev.map((ex, i) => 
-          i === exerciseIndex ? { ...ex, isVideoLoading: false, videoError: "Tutorial GIF not found." } : ex
+          i === exerciseIndex ? { ...ex, isVideoLoading: false, videoError: "Tutorial not found." } : ex
       ));
     }
   };
@@ -96,31 +98,33 @@ const WorkoutDisplay: React.FC<WorkoutDisplayProps> = ({ plan }) => {
 
                     <div className="relative group/video">
                         {exercise.videoUrl ? (
-                            <div className="rounded-2xl overflow-hidden border border-neutral-800 bg-neutral-900 shadow-2xl aspect-video flex items-center justify-center">
-                                {/* CHANGED FROM IFRAME TO IMG FOR GIFS */}
-                                <img 
-                                  src={exercise.videoUrl} 
-                                  alt={exercise.name} 
-                                  className="w-full h-full object-cover"
-                                />
+                             <div className="rounded-2xl overflow-hidden border border-neutral-800 bg-black shadow-2xl aspect-video">
+                                <iframe 
+                                    className="w-full h-full"
+                                    src={getEmbedUrl(exercise.videoUrl)}
+                                    title="Exercise Tutorial"
+                                    frameBorder="0"
+                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                                    allowFullScreen
+                                ></iframe>
                             </div>
                         ) : (
                             <button
-                                onClick={() => handleFetchTutorial(index)}
+                                onClick={() => handleGenerateVideo(index)}
                                 disabled={exercise.isVideoLoading}
                                 className="w-full h-full min-h-[180px] rounded-2xl bg-neutral-900/50 border-2 border-dashed border-neutral-800 hover:border-emerald-500/30 hover:bg-neutral-800/50 transition-all duration-300 flex flex-col items-center justify-center gap-3 group"
                             >
                                 {exercise.isVideoLoading ? (
                                     <div className="flex flex-col items-center gap-3">
                                       <ArrowPathIcon className="h-6 w-6 text-emerald-500 animate-spin" />
-                                      <span className="text-[9px] font-black text-neutral-500 uppercase tracking-widest text-center">Fetching 3D Tutorial...</span>
+                                      <span className="text-[9px] font-black text-neutral-500 uppercase tracking-widest text-center">Searching YouTube...</span>
                                     </div>
                                 ) : (
                                     <>
                                         <div className="p-3 rounded-full bg-neutral-800 text-neutral-500 group-hover:text-emerald-500 transition-colors">
                                           <VideoCameraIcon className="h-6 w-6" />
                                         </div>
-                                        <span className="text-[10px] font-black text-neutral-400 uppercase tracking-widest-custom group-hover:text-neutral-200">View 3D Form</span>
+                                        <span className="text-[10px] font-black text-neutral-400 uppercase tracking-widest-custom group-hover:text-neutral-200">Watch Tutorial</span>
                                     </>
                                 )}
                             </button>
