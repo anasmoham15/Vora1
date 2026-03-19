@@ -1,69 +1,62 @@
 import { GoogleGenAI } from "@google/genai";
 import type { WorkoutPlan, WeeklyPlan, WeeklyPlannerConfig, ExerciseDetail, HealthQuizData } from '../types';
 
-// We now accept the key as a direct argument to ensure it exists
-const getModelWithKey = (key: string) => {
+// HARDCODED FALLBACK: If Vercel fails, we use the key directly.
+const getModel = () => {
+  // Try to get from environment first, otherwise use the hardcoded string
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY || "AIzaSyDXw9gqtA9MG_tKy7HGGMyrobSaWGfe214";
+
+  if (!apiKey || apiKey === "AIzaSyDXw9gqtA9MG_tKy7HGGMyrobSaWGfe214") {
+    console.warn("Using Hardcoded Key (Environment Variable not found)");
+  }
+
   try {
-    const genAI = new GoogleGenAI(key);
+    const genAI = new GoogleGenAI(apiKey);
     return genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
   } catch (e: any) {
-    throw new Error("SDK_INIT_FAILED: " + e.message);
+    throw new Error("AI_INIT_ERROR: " + e.message);
   }
 };
 
-export const generateWorkout = async (bodyPart: string, muscle: string, environment: string, apiKey: string): Promise<WorkoutPlan> => {
+export const generateWorkout = async (bodyPart: string, muscle: string, environment: string): Promise<WorkoutPlan> => {
   try {
-    const model = getModelWithKey(apiKey);
+    const model = getModel();
     const prompt = `Generate a workout for ${muscle} (${bodyPart}) at ${environment}. 
     Return ONLY a JSON object with: "strategy" (string) and "exercises" (array of 4 objects with: name, description, sets, reps, instructions as array).`;
 
     const result = await model.generateContent(prompt);
     const text = result.response.text();
-    
     const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error("AI response format error.");
-    
+    if (!jsonMatch) throw new Error("Format Error");
     return JSON.parse(jsonMatch[0]);
   } catch (error: any) {
     throw error;
   }
 };
 
-export const generateHealthAnalysis = async (answers: HealthQuizData, bmi: number | null, healthScore: number, apiKey: string): Promise<string> => {
+export const generateHealthAnalysis = async (answers: HealthQuizData, bmi: number | null, healthScore: number): Promise<string> => {
   try {
-    const model = getModelWithKey(apiKey);
-    const prompt = `Analyze this health data: BMI ${bmi ? bmi.toFixed(1) : 'N/A'}, Health Score ${healthScore}/100. 
-    Activity: ${answers.activity}, Sleep: ${answers.sleep}, Diet: ${answers.diet}. 
-    Provide a summary and 3 action steps in Markdown format.`;
-
+    const model = getModel();
+    const prompt = `Analyze: BMI ${bmi ? bmi.toFixed(1) : 'N/A'}, Score ${healthScore}/100. Activity: ${answers.activity}, Sleep: ${answers.sleep}, Diet: ${answers.diet}. Markdown format.`;
     const result = await model.generateContent(prompt);
     return result.response.text();
   } catch (error: any) {
-    throw new Error("Health analysis failed: " + error.message);
+    throw error;
   }
 };
 
-export const generateWeeklyPlan = async (config: WeeklyPlannerConfig, apiKey: string): Promise<WeeklyPlan> => {
-  try {
-    const model = getModelWithKey(apiKey);
-    const prompt = `Create a 7-day workout split for a ${config.level} level user. 
-    Goal: ${config.goal.join(', ')}. Split: ${config.split}. Frequency: ${config.daysPerWeek} days.
-    Return JSON.`;
-
-    const result = await model.generateContent({
-      contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      generationConfig: { responseMimeType: "application/json" }
-    });
-    
-    const text = result.response.text();
-    return JSON.parse(text);
-  } catch (error: any) {
-    throw new Error("Weekly plan failed: " + error.message);
-  }
+export const generateWeeklyPlan = async (config: WeeklyPlannerConfig): Promise<WeeklyPlan> => {
+  const model = getModel();
+  const prompt = `7-day split for ${config.level}. Goal: ${config.goal.join(', ')}. Return JSON.`;
+  const result = await model.generateContent({
+    contents: [{ role: 'user', parts: [{ text: prompt }] }],
+    generationConfig: { responseMimeType: "application/json" }
+  });
+  return JSON.parse(result.response.text());
 };
 
-export const searchExerciseDetail = async (query: string, apiKey: string): Promise<ExerciseDetail> => {
-  const model = getModelWithKey(apiKey);
+export const searchExerciseDetail = async (query: string): Promise<ExerciseDetail> => {
+  const model = getModel();
   const prompt = `Details for: "${query}". Return JSON: name, muscleGroup, type, description.`;
   const result = await model.generateContent({
     contents: [{ role: 'user', parts: [{ text: prompt }] }],
