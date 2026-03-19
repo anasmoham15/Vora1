@@ -1,56 +1,33 @@
 import { GoogleGenerativeAI, SchemaType } from "@google/generative-ai";
 import type { WorkoutPlan, WeeklyPlan, WeeklyPlannerConfig, HealthQuizData, ExerciseDetail } from '../types';
 
-// The .trim() is required to remove invisible characters from Vercel env vars
+// The .trim() handles Vercel whitespace issues
 const apiKey = import.meta.env.VITE_GEMINI_API_KEY?.trim();
+
+// FIX: Explicitly setting the API version to 'v1' to stop the 404 error
 const genAI = new GoogleGenerativeAI(apiKey || "");
 
 export const generateWorkout = async (bodyPart: string, muscle: string, environment: string): Promise<WorkoutPlan> => {
-  // Use the 1.5-flash model for the fastest and most reliable JSON response
+  // We use the model name directly. The library handles the URL.
   const model = genAI.getGenerativeModel({ 
     model: "gemini-1.5-flash",
-    generationConfig: {
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: SchemaType.OBJECT,
-        properties: {
-          strategy: { type: SchemaType.STRING },
-          exercises: {
-            type: SchemaType.ARRAY,
-            items: {
-              type: SchemaType.OBJECT,
-              properties: {
-                name: { type: SchemaType.STRING },
-                description: { type: SchemaType.STRING },
-                sets: { type: SchemaType.STRING },
-                reps: { type: SchemaType.STRING },
-                instructions: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } }
-              },
-              required: ["name", "description", "sets", "reps", "instructions"]
-            }
-          }
-        },
-        required: ["strategy", "exercises"]
-      }
-    }
-  });
+  }, { apiVersion: 'v1' }); // <--- THIS FORCES THE STABLE VERSION
 
-  const prompt = `Generate a 4-exercise workout for ${muscle} (${bodyPart}) at ${environment}. Return the data in the specified JSON format.`;
+  const prompt = `Generate a 4-exercise workout for ${muscle} (${bodyPart}) at ${environment}. 
+  Return ONLY a JSON object: {"strategy": "string", "exercises": [{"name": "string", "description": "string", "sets": "string", "reps": "string", "instructions": ["string"]}]}`;
 
   try {
     const result = await model.generateContent(prompt);
-    const text = result.response.text();
-    // This cleaning logic is a fail-safe for the JSON parser
-    const cleanedJson = text.replace(/```json/g, '').replace(/```/g, '').trim();
-    return JSON.parse(cleanedJson);
+    const text = result.response.text().replace(/```json/g, '').replace(/```/g, '').trim();
+    return JSON.parse(text);
   } catch (err) {
-    console.error("Gemini Execution Error:", err);
+    console.error("Gemini Final Error:", err);
     throw err;
   }
 };
 
-// Build-essential exports
-export const generateExerciseVideo = async (name: string) => `https://www.youtube.com/results?search_query=${encodeURIComponent(name)}+tutorial`;
+// Required exports for Rollup build success
+export const generateExerciseVideo = async (n: string) => `https://www.youtube.com/results?search_query=${encodeURIComponent(n)}+tutorial`;
 export const generateWeeklyPlan = async () => ({});
 export const generateHealthAnalysis = async () => "";
 export const searchExerciseDetail = async () => ({});
