@@ -4,13 +4,18 @@ import type { WorkoutPlan, WeeklyPlan, WeeklyPlannerConfig, ExerciseDetail, Heal
 // Helper to initialize AI safely
 const getModel = () => {
   const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-
+  
+  // This will pop up a window on your site telling us if the key is there
   if (!apiKey) {
-    const errorMsg = "VITE_GEMINI_API_KEY is not defined in the environment. " + 
-                     "Check Vercel Settings and ensure you have REDEPLOYED.";
-    console.error("❌ ERROR:", errorMsg);
-    throw new Error(errorMsg);
+    alert("DEBUG: The API Key is MISSING from the build!");
+  } else {
+    console.log("DEBUG: Key starts with:", apiKey.substring(0, 4));
   }
+
+  if (!apiKey) throw new Error("API Key Missing");
+  const genAI = new GoogleGenAI(apiKey);
+  return genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+};
 
   try {
     const genAI = new GoogleGenAI(apiKey);
