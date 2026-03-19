@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { VoraLogo } from './Icons';
+import { supabase } from '../supabaseClient'; // IMPORT OUR NEW BRIDGE
 import type { User } from '../types';
 
 interface AuthModalProps {
@@ -20,15 +21,15 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose, onSuccess, existingUser 
     if (!re.test(email)) return "Invalid email format";
     
     const domain = email.split('@')[1]?.toLowerCase();
-    const allowedDomains = ['gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com'];
+    const allowedDomains = ['gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com', 'icloud.com'];
     
     if (!allowedDomains.includes(domain)) {
-      return "Only Gmail, Yahoo, Outlook, or Hotmail accounts are permitted";
+      return "Only standard email providers (Gmail, Yahoo, Outlook, Hotmail, iCloud) are permitted";
     }
     return null;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
@@ -44,12 +45,41 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose, onSuccess, existingUser 
     }
 
     setIsSubmitting(true);
-    // Mock authentication process
-    setTimeout(() => {
+
+    try {
+      if (step === 'signup') {
+        // --- REAL SIGN UP ---
+        const { data, error: signUpError } = await supabase.auth.signUp({
+          email,
+          password,
+        });
+        if (signUpError) throw signUpError;
+        
+        // If Supabase returns a user but email confirmation is ON, notify them
+        if (data.user && data.session === null) {
+          setError("Check your email for a confirmation link!");
+        } else {
+          onSuccess(email);
+          onClose();
+        }
+      } else {
+        // --- REAL LOGIN ---
+        const { data, error: signInError } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+        if (signInError) throw signInError;
+
+        if (data.user) {
+          onSuccess(email);
+          onClose();
+        }
+      }
+    } catch (err: any) {
+      setError(err.message || "An authentication error occurred");
+    } finally {
       setIsSubmitting(false);
-      onSuccess(email);
-      onClose();
-    }, 800);
+    }
   };
 
   return (
@@ -66,11 +96,11 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose, onSuccess, existingUser 
 
         <div className="flex flex-col items-center text-center mb-10">
           <VoraLogo className="h-12 w-12 text-emerald-500 mb-6" />
-          <h2 className="text-3xl font-black text-white uppercase tracking-tighter-custom">
+          <h2 className="text-3xl font-black text-white uppercase tracking-tighter">
             {step === 'login' ? 'Welcome Back' : 'Create Account'}
           </h2>
-          <p className="text-neutral-500 text-xs font-bold uppercase tracking-widest-custom mt-2">
-            Save your progress to Vora
+          <p className="text-neutral-500 text-xs font-bold uppercase tracking-widest mt-2">
+            Access your Vora Pro profile
           </p>
         </div>
 
@@ -83,6 +113,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose, onSuccess, existingUser 
               onChange={(e) => setEmail(e.target.value)}
               className="w-full bg-black border border-neutral-900 rounded-2xl py-4 px-6 text-white focus:border-emerald-500 outline-none transition-colors"
               placeholder="name@gmail.com"
+              required
             />
           </div>
           <div>
@@ -93,17 +124,23 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose, onSuccess, existingUser 
               onChange={(e) => setPassword(e.target.value)}
               className="w-full bg-black border border-neutral-900 rounded-2xl py-4 px-6 text-white focus:border-emerald-500 outline-none transition-colors"
               placeholder="••••••••"
+              required
+              minLength={6}
             />
           </div>
 
-          {error && <p className="text-red-500 text-xs font-bold text-center leading-relaxed">{error}</p>}
+          {error && (
+            <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl">
+              <p className="text-red-500 text-xs font-bold text-center leading-relaxed">{error}</p>
+            </div>
+          )}
 
           <button 
             type="submit"
             disabled={isSubmitting}
-            className="w-full py-5 rounded-2xl bg-emerald-500 text-black font-black uppercase tracking-widest transition-transform hover:scale-[1.02] disabled:opacity-50"
+            className="w-full py-5 rounded-2xl bg-emerald-500 text-black font-black uppercase tracking-widest transition-transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50"
           >
-            {isSubmitting ? 'Processing...' : step === 'login' ? 'Login' : 'Sign Up'}
+            {isSubmitting ? 'Authenticating...' : step === 'login' ? 'Login' : 'Sign Up'}
           </button>
         </form>
 
