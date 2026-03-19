@@ -1,36 +1,43 @@
-import { GoogleGenerativeAI, SchemaType } from "@google/generative-ai";
-import type { WorkoutPlan, WeeklyPlan, WeeklyPlannerConfig, HealthQuizData, ExerciseDetail } from '../types';
+import type { WorkoutPlan } from '../types';
 
-// 1. Get the key and verify it exists
-const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-
-if (!apiKey) {
-  console.error("CRITICAL: VITE_GEMINI_API_KEY is missing from the environment!");
-}
-
-const genAI = new GoogleGenerativeAI(apiKey || "");
+const apiKey = import.meta.env.VITE_GEMINI_API_KEY?.trim();
 
 export const generateWorkout = async (bodyPart: string, muscle: string, environment: string): Promise<WorkoutPlan> => {
-  // 2. Fix the model initialization
-  const model = genAI.getGenerativeModel({ 
-    model: "gemini-1.5-flash" 
-  }, { apiVersion: "v1" });
+  // We use a direct fetch to the v1beta endpoint which explicitly supports gemini-1.5-flash
+  const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
 
   const prompt = `Generate a 4-exercise workout for ${muscle} (${bodyPart}) at ${environment}. 
   Return ONLY a JSON object: {"strategy": "string", "exercises": [{"name": "string", "description": "string", "sets": "string", "reps": "string", "instructions": ["string"]}]}`;
 
+  const payload = {
+    contents: [{ parts: [{ text: prompt }] }],
+    generationConfig: {
+      responseMimeType: "application/json"
+    }
+  };
+
   try {
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text().replace(/```json/g, '').replace(/```/g, '').trim();
+    const response = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error?.message || "Google API Error");
+    }
+
+    const data = await response.json();
+    const text = data.candidates[0].content.parts[0].text;
     return JSON.parse(text);
   } catch (err) {
-    console.error("Gemini Final Error:", err);
+    console.error("Gemini Direct Fetch Error:", err);
     throw err;
   }
 };
 
-// Keep other exports as they are
+// Built-in fallbacks to ensure the app doesn't crash on other screens
 export const generateExerciseVideo = async (n: string) => `https://www.youtube.com/results?search_query=${encodeURIComponent(n)}+tutorial`;
 export const generateWeeklyPlan = async () => ({});
 export const generateHealthAnalysis = async () => "";
