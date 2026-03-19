@@ -55,12 +55,29 @@ export default function App() {
   }, []);
 
   const loadUserWorkouts = async (userId: string) => {
-    // Eventually, we will fetch from Supabase here. 
-    // For now, it still pulls from localStorage as a backup.
-    const allWorkouts = localStorage.getItem('vora_saved_workouts');
-    if (allWorkouts) {
-      const parsed = JSON.parse(allWorkouts) as SavedWorkout[];
-      setSavedWorkouts(parsed.filter(w => w.userId === userId));
+    // 1. Fetch from the 'saved_workouts' table for this specific user
+    const { data, error } = await supabase
+      .from('saved_workouts')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error("Error fetching workouts:", error.message);
+      return;
+    }
+
+    if (data) {
+      // 2. Map the database rows back into the format your UI expects
+      const formattedWorkouts: SavedWorkout[] = data.map(row => ({
+        id: row.id,
+        userId: row.user_id,
+        timestamp: new Date(row.created_at).getTime(),
+        // Spread the payload (bodyPart, muscle, environment, plan)
+        ...row.payload 
+      }));
+      
+      setSavedWorkouts(formattedWorkouts);
     }
   };
 
