@@ -1,17 +1,21 @@
-import { GoogleGenAI, SchemaType } from "@google/genai";
+import { GoogleGenAI } from "@google/genai";
 import type { WorkoutPlan, WeeklyPlan, WeeklyPlannerConfig, ExerciseDetail, HealthQuizData } from '../types';
 
-// Initialize the Google Generative AI client
-const genAI = new GoogleGenAI(import.meta.env.VITE_GEMINI_API_KEY);
+// Helper to initialize AI only when needed
+const getModel = () => {
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error("Gemini API Key is missing. Check your environment variables.");
+  }
+  const genAI = new GoogleGenAI(apiKey);
+  return genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+};
 
 /**
  * Generates a targeted 4-exercise workout plan.
  */
 export const generateWorkout = async (bodyPart: string, muscle: string, environment: string): Promise<WorkoutPlan> => {
-  // Use the stable flash model
-  const model = genAI.getGenerativeModel({ 
-    model: "gemini-1.5-flash"
-  });
+  const model = getModel();
 
   const prompt = `You are a friendly, expert personal trainer. Generate a clear and effective workout.
   Target Area: ${muscle} (${bodyPart}).
@@ -21,40 +25,16 @@ export const generateWorkout = async (bodyPart: string, muscle: string, environm
   - Exactly 4 exercises.
   - Strategy: 2-3 sentences explaining why this works.
   - For each exercise: name, description, sets, reps, and 3-5 clear instructions.
-
-  Return the response as a valid JSON object with the following structure:
-  {
-    "strategy": "string",
-    "exercises": [
-      {
-        "name": "string",
-        "description": "string",
-        "sets": "string",
-        "reps": "string",
-        "instructions": ["string", "string", "string"]
-      }
-    ]
-  }`;
+  - Return ONLY a valid JSON object.`;
 
   try {
     const result = await model.generateContent({
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      generationConfig: {
-        responseMimeType: "application/json",
-      }
+      generationConfig: { responseMimeType: "application/json" }
     });
 
-    const response = await result.response;
-    const text = response.text();
-    
-    // Clean potential markdown formatting
-    const cleanedText = text.replace(/```json/g, '').replace(/```/g, '').trim();
-    const parsed = JSON.parse(cleanedText);
-    
-    return {
-      strategy: parsed.strategy,
-      exercises: parsed.exercises
-    };
+    const text = result.response.text().replace(/```json/g, '').replace(/```/g, '').trim();
+    return JSON.parse(text);
   } catch (error: any) {
     console.error("Gemini Generation Error:", error);
     throw new Error("Failed to create workout: " + error.message);
@@ -65,22 +45,19 @@ export const generateWorkout = async (bodyPart: string, muscle: string, environm
  * Generates a full 7-day workout split.
  */
 export const generateWeeklyPlan = async (config: WeeklyPlannerConfig): Promise<WeeklyPlan> => {
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-
-  const prompt = `Create a 7-day workout split for a ${config.level} level user. 
-  Goal: ${config.goal.join(', ')}. Split: ${config.split}. Frequency: ${config.daysPerWeek} days.
-  Return a JSON object where keys are "Monday" through "Sunday". 
-  Each day must have a "title" and an "activities" array of strings (Exercise - Sets x Reps).`;
-
   try {
+    const model = getModel();
+    const prompt = `Create a 7-day workout split for a ${config.level} level user. 
+    Goal: ${config.goal.join(', ')}. Split: ${config.split}. Frequency: ${config.daysPerWeek} days.
+    Return JSON. Each day has "title" and "activities" (array of strings).`;
+
     const result = await model.generateContent({
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
       generationConfig: { responseMimeType: "application/json" }
     });
     
-    const text = result.response.text();
-    const cleanedText = text.replace(/```json/g, '').replace(/```/g, '').trim();
-    return JSON.parse(cleanedText);
+    const text = result.response.text().replace(/```json/g, '').replace(/```/g, '').trim();
+    return JSON.parse(text);
   } catch (error) {
     console.error("Weekly Plan Error:", error);
     throw new Error("Failed to generate weekly plan.");
@@ -91,13 +68,12 @@ export const generateWeeklyPlan = async (config: WeeklyPlannerConfig): Promise<W
  * Analyzes health quiz data.
  */
 export const generateHealthAnalysis = async (answers: HealthQuizData, bmi: number | null, healthScore: number): Promise<string> => {
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-  
-  const prompt = `Analyze this health data: BMI ${bmi ? bmi.toFixed(1) : 'N/A'}, Health Score ${healthScore}/100. 
-  Activity: ${answers.activity}, Sleep: ${answers.sleep}, Diet: ${answers.diet}. 
-  Provide a summary, habit analysis, and 3 action steps in Markdown format.`;
-
   try {
+    const model = getModel();
+    const prompt = `Analyze: BMI ${bmi ? bmi.toFixed(1) : 'N/A'}, Score ${healthScore}/100. 
+    Activity: ${answers.activity}, Sleep: ${answers.sleep}, Diet: ${answers.diet}. 
+    Provide summary and 3 action steps in Markdown.`;
+
     const result = await model.generateContent(prompt);
     return result.response.text();
   } catch (error) {
@@ -110,15 +86,14 @@ export const generateHealthAnalysis = async (answers: HealthQuizData, bmi: numbe
  * Dictionary search for specific exercise details.
  */
 export const searchExerciseDetail = async (query: string): Promise<ExerciseDetail> => {
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-  const prompt = `Provide details for the exercise: "${query}". Return JSON with name, muscleGroup, type, and description.`;
+  const model = getModel();
+  const prompt = `Provide details for: "${query}". Return JSON: name, muscleGroup, type, description.`;
 
   const result = await model.generateContent({
     contents: [{ role: 'user', parts: [{ text: prompt }] }],
     generationConfig: { responseMimeType: "application/json" }
   });
 
-  const text = result.response.text();
-  const cleanedText = text.replace(/```json/g, '').replace(/```/g, '').trim();
-  return JSON.parse(cleanedText);
+  const text = result.response.text().replace(/```json/g, '').replace(/```/g, '').trim();
+  return JSON.parse(text);
 };
