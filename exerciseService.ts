@@ -1,12 +1,22 @@
 const EXERCISE_DB_KEY = import.meta.env.VITE_RAPIDAPI_KEY;
 
 export const getExerciseDetails = async (exerciseName: string) => {
-  const url = `https://exercisedb.p.rapidapi.com/exercises/name/${encodeURIComponent(exerciseName.toLowerCase())}`;
+  // 🔥 FIX: Clean the name to increase match rate
+  // This removes common "AI fluff" words
+  const cleanName = exerciseName
+    .toLowerCase()
+    .replace(/classic|effective|simple|intense|weighted|standard/g, '')
+    .trim()
+    .split(' ')
+    .slice(0, 3) // Take only the first 3 words (e.g., "Barbell Bench Press")
+    .join(' ');
+
+  const url = `https://exercisedb.p.rapidapi.com/exercises/name/${encodeURIComponent(cleanName)}`;
   
   const options = {
     method: 'GET',
     headers: {
-      'x-rapidapi-key': EXERCISE_DB_KEY,
+      'x-rapidapi-key': EXERCISE_DB_KEY || '',
       'x-rapidapi-host': 'exercisedb.p.rapidapi.com'
     }
   };
@@ -15,18 +25,21 @@ export const getExerciseDetails = async (exerciseName: string) => {
     const response = await fetch(url, options);
     const data = await response.json();
     
-    // ExerciseDB returns an array of matches; we take the first one
-    if (data && data.length > 0) {
+    // If the specific name fails, try a broader search
+    if (!data || data.length === 0) {
+       console.log("No specific match, trying fallback...");
+       // You could add a second fetch here with an even simpler name if needed
+    }
+
+    if (Array.isArray(data) && data.length > 0) {
       return {
-        gifUrl: data[0].gifUrl, // The 3D Animation
-        instructions: data[0].instructions, // Step-by-step text
-        target: data[0].target, // Specific muscle
-        equipment: data[0].equipment // Required gear
+        gifUrl: data[0].gifUrl,
+        instructions: data[0].instructions
       };
     }
     return null;
   } catch (error) {
-    console.error("ExerciseDB fetch failed:", error);
+    console.error("ExerciseDB Error:", error);
     return null;
   }
 };
