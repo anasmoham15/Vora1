@@ -1,17 +1,14 @@
 const EXERCISE_DB_KEY = import.meta.env.VITE_RAPIDAPI_KEY;
 
 export const getExerciseDetails = async (exerciseName: string) => {
-  // 🔥 FIX: Clean the name to increase match rate
-  // This removes common "AI fluff" words
+  // 1. Better Cleaning: Replace dashes and join words with %20 for the API
   const cleanName = exerciseName
     .toLowerCase()
+    .replace(/-/g, ' ')
     .replace(/classic|effective|simple|intense|weighted|standard/g, '')
-    .trim()
-    .split(' ')
-    .slice(0, 3) // Take only the first 3 words (e.g., "Barbell Bench Press")
-    .join(' ');
+    .trim();
 
-  const url = `https://exercisedb.p.rapidapi.com/exercises/name/${encodeURIComponent(cleanName)}`;
+  const url = `https://exercisedb.p.rapidapi.com/exercises/name/${encodeURIComponent(cleanName)}?limit=10`;
   
   const options = {
     method: 'GET',
@@ -25,19 +22,26 @@ export const getExerciseDetails = async (exerciseName: string) => {
     const response = await fetch(url, options);
     const data = await response.json();
     
-    // If the specific name fails, try a broader search
-    if (!data || data.length === 0) {
-       console.log("No specific match, trying fallback...");
-       // You could add a second fetch here with an even simpler name if needed
+    // 2. If no exact match, try a broader "Search" instead of "Name"
+    if (!Array.isArray(data) || data.length === 0) {
+       console.log("No exact match found, trying broader search...");
+       const searchUrl = `https://exercisedb.p.rapidapi.com/exercises/name/${encodeURIComponent(cleanName.split(' ')[0])}`;
+       const secondResponse = await fetch(searchUrl, options);
+       const secondData = await secondResponse.json();
+       
+       if (secondData && secondData.length > 0) {
+         return {
+           gifUrl: secondData[0].gifUrl,
+           instructions: secondData[0].instructions
+         };
+       }
+       return null;
     }
 
-    if (Array.isArray(data) && data.length > 0) {
-      return {
-        gifUrl: data[0].gifUrl,
-        instructions: data[0].instructions
-      };
-    }
-    return null;
+    return {
+      gifUrl: data[0].gifUrl,
+      instructions: data[0].instructions
+    };
   } catch (error) {
     console.error("ExerciseDB Error:", error);
     return null;
