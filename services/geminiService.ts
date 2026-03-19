@@ -1,14 +1,10 @@
 import { GoogleGenerativeAI, SchemaType } from "@google/generative-ai";
 import type { Exercise, HealthQuizData, WorkoutPlan, WeeklyPlan, WeeklyPlannerConfig, ExerciseDetail } from '../types';
 
-// Initialize with the stable library name
 const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY);
 
-/**
- * FIXED SERVICE: Restoring Perfect UI and Stable Gemini Connection
- */
+// 1. Generate Single Workout
 export const generateWorkout = async (bodyPart: string, muscle: string, environment: string): Promise<WorkoutPlan> => {
-  // Use the stable flash model
   const model = genAI.getGenerativeModel({ 
     model: "gemini-1.5-flash",
     generationConfig: {
@@ -37,47 +33,54 @@ export const generateWorkout = async (bodyPart: string, muscle: string, environm
     }
   });
 
-  const prompt = `You are a friendly, expert personal trainer. Generate a workout for:
-  Target Area: ${muscle} (${bodyPart})
-  Location: ${environment}
-  
-  REQUIREMENTS:
-  - Exactly 4 exercises.
-  - Strategy: 2-3 encouraging sentences.
-  - Exercises: Name, description, sets (e.g. '3 sets'), reps (e.g. '12 reps'), and 3-5 clear instructions.`;
+  const prompt = `Generate a 4-exercise workout for ${muscle} (${bodyPart}) at ${environment}. Return JSON.`;
+  const result = await model.generateContent(prompt);
+  return JSON.parse(result.response.text());
+};
+
+// 2. Generate Weekly Plan (The one that caused the error!)
+export const generateWeeklyPlan = async (config: WeeklyPlannerConfig): Promise<WeeklyPlan> => {
+  const model = genAI.getGenerativeModel({ 
+    model: "gemini-1.5-flash",
+    generationConfig: { responseMimeType: "application/json" }
+  });
+
+  const prompt = `Create a 7-day workout split for a ${config.level} level goal: ${config.goal}. 
+  Return JSON format: {"Monday": {"title": "string", "activities": ["string"]}, ...}`;
 
   try {
     const result = await model.generateContent(prompt);
-    const parsed = JSON.parse(result.response.text());
-    return {
-      strategy: parsed.strategy,
-      exercises: parsed.exercises
-    };
+    return JSON.parse(result.response.text());
   } catch (error) {
-    console.error("Gemini Workout Error:", error);
-    throw new Error("Failed to create workout.");
+    console.error("Weekly Plan Error:", error);
+    throw new Error("Failed to create weekly plan.");
   }
 };
 
-export const generateExerciseVideo = async (exerciseName: string): Promise<string> => {
-  try {
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-    const result = await model.generateContent(`Provide ONLY the YouTube URL for a ${exerciseName} tutorial.`);
-    const text = result.response.text();
-    const match = text.match(/https?:\/\/(www\.)?(youtube\.com|youtu\.be)\/[^\s]+/);
-    return match ? match[0] : `https://www.youtube.com/results?search_query=${encodeURIComponent(exerciseName)}+tutorial`;
-  } catch {
-    return `https://www.youtube.com/results?search_query=${encodeURIComponent(exerciseName)}+tutorial`;
-  }
+// 3. Search Exercise Detail
+export const searchExerciseDetail = async (query: string): Promise<ExerciseDetail> => {
+  const model = genAI.getGenerativeModel({ 
+    model: "gemini-1.5-flash",
+    generationConfig: { responseMimeType: "application/json" }
+  });
+  const prompt = `Provide details for ${query}: name, muscleGroup, type, description. Return JSON.`;
+  const result = await model.generateContent(prompt);
+  return JSON.parse(result.response.text());
 };
 
+// 4. Health Analysis
 export const generateHealthAnalysis = async (answers: HealthQuizData, bmi: number | null, healthScore: number): Promise<string> => {
-  try {
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-    const prompt = `Health Coach Assessment: Activity:${answers.activity}, Sleep:${answers.sleep}, Score:${healthScore}, BMI:${bmi}. Give 3 action steps in Markdown.`;
-    const result = await model.generateContent(prompt);
-    return result.response.text();
-  } catch (error) {
-    return "Analysis temporarily unavailable.";
-  }
+  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+  const prompt = `Analyze health: BMI ${bmi}, Score ${healthScore}. Give 3 action steps in Markdown.`;
+  const result = await model.generateContent(prompt);
+  return result.response.text();
+};
+
+// 5. Exercise Video
+export const generateExerciseVideo = async (exerciseName: string): Promise<string> => {
+  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+  const result = await model.generateContent(`YouTube URL for ${exerciseName} tutorial. URL only.`);
+  const text = result.response.text();
+  const match = text.match(/https?:\/\/(www\.)?(youtube\.com|youtu\.be)\/[^\s]+/);
+  return match ? match[0] : `https://www.youtube.com/results?search_query=${encodeURIComponent(exerciseName)}`;
 };
