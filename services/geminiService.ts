@@ -4,9 +4,21 @@ import type { WorkoutPlan, WeeklyPlan, WeeklyPlannerConfig, ExerciseDetail, Heal
 // Helper to initialize AI safely
 const getModel = () => {
   const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-  if (!apiKey) throw new Error("API Key Missing");
-  const genAI = new GoogleGenAI(apiKey);
-  return genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+  if (!apiKey) {
+    const errorMsg = "VITE_GEMINI_API_KEY is not defined in the environment. " + 
+                     "Check Vercel Settings and ensure you have REDEPLOYED.";
+    console.error("❌ ERROR:", errorMsg);
+    throw new Error(errorMsg);
+  }
+
+  try {
+    const genAI = new GoogleGenAI(apiKey);
+    return genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+  } catch (e) {
+    console.error("❌ GoogleGenAI Init Failed:", e);
+    throw e;
+  }
 };
 
 /**
