@@ -1,15 +1,15 @@
 const EXERCISE_DB_KEY = import.meta.env.VITE_RAPIDAPI_KEY;
 
 export const getExerciseDetails = async (exerciseName: string) => {
-  // 1. Better Cleaning: Replace dashes and join words with %20 for the API
+  // 1. Log the attempt so you can see it in the console
+  console.log(`🔍 Searching GIF for: ${exerciseName}`);
+
   const cleanName = exerciseName
     .toLowerCase()
     .replace(/-/g, ' ')
-    .replace(/classic|effective|simple|intense|weighted|standard/g, '')
+    .replace(/classic|effective|simple|intense|weighted|standard|exercise|drills/g, '')
     .trim();
 
-  const url = `https://exercisedb.p.rapidapi.com/exercises/name/${encodeURIComponent(cleanName)}?limit=10`;
-  
   const options = {
     method: 'GET',
     headers: {
@@ -19,13 +19,21 @@ export const getExerciseDetails = async (exerciseName: string) => {
   };
 
   try {
+    const url = `https://exercisedb.p.rapidapi.com/exercises/name/${encodeURIComponent(cleanName)}?limit=10`;
     const response = await fetch(url, options);
+    
+    // Safety check for API Key issues
+    if (response.status === 401 || response.status === 403) {
+      console.error("❌ RapidAPI Key Error: Check your VITE_RAPIDAPI_KEY");
+      return null;
+    }
+
     const data = await response.json();
     
-    // 2. If no exact match, try a broader "Search" instead of "Name"
     if (!Array.isArray(data) || data.length === 0) {
-       console.log("No exact match found, trying broader search...");
-       const searchUrl = `https://exercisedb.p.rapidapi.com/exercises/name/${encodeURIComponent(cleanName.split(' ')[0])}`;
+       // Fallback: Search ONLY the first word (e.g., "Dumbbell" instead of "Dumbbell Lateral Raise")
+       const firstWord = cleanName.split(' ')[0];
+       const searchUrl = `https://exercisedb.p.rapidapi.com/exercises/name/${encodeURIComponent(firstWord)}?limit=5`;
        const secondResponse = await fetch(searchUrl, options);
        const secondData = await secondResponse.json();
        
@@ -43,7 +51,7 @@ export const getExerciseDetails = async (exerciseName: string) => {
       instructions: data[0].instructions
     };
   } catch (error) {
-    console.error("ExerciseDB Error:", error);
+    console.error("ExerciseDB Network Error:", error);
     return null;
   }
 };
