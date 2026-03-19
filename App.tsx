@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { supabase } from './supabaseClient'; // NEW IMPORT
 import Header from './components/Header';
 import ModeSelector from './components/ModeSelector';
 import WorkoutGenerator from './components/WorkoutGenerator';
@@ -18,16 +19,44 @@ export default function App() {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [savedWorkouts, setSavedWorkouts] = useState<SavedWorkout[]>([]);
 
+  // REAL AUTH CHECK: Replaces the old localStorage useEffect
   useEffect(() => {
-    const savedUser = localStorage.getItem('vora_user');
-    if (savedUser) {
-      const parsedUser = JSON.parse(savedUser);
-      setUser(parsedUser);
-      loadUserWorkouts(parsedUser.id);
-    }
+    const initAuth = async () => {
+      // Check if a user is already logged into Supabase
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (session?.user) {
+        const loggedInUser: User = {
+          id: session.user.id,
+          email: session.user.email || '',
+          role: 'free',
+          createdAt: Date.now()
+        };
+        setUser(loggedInUser);
+        loadUserWorkouts(session.user.id);
+      }
+
+      // Listen for login/logout changes automatically
+      supabase.auth.onAuthStateChange((_event, session) => {
+        if (session?.user) {
+          setUser({
+            id: session.user.id,
+            email: session.user.email || '',
+            role: 'free',
+            createdAt: Date.now()
+          });
+        } else {
+          setUser(null);
+        }
+      });
+    };
+
+    initAuth();
   }, []);
 
-  const loadUserWorkouts = (userId: string) => {
+  const loadUserWorkouts = async (userId: string) => {
+    // Eventually, we will fetch from Supabase here. 
+    // For now, it still pulls from localStorage as a backup.
     const allWorkouts = localStorage.getItem('vora_saved_workouts');
     if (allWorkouts) {
       const parsed = JSON.parse(allWorkouts) as SavedWorkout[];
@@ -36,23 +65,20 @@ export default function App() {
   };
 
   const handleLoginSuccess = (email: string) => {
-    const newUser: User = {
-      id: Math.random().toString(36).substring(7),
-      email,
-      role: 'free',
-      createdAt: Date.now()
-    };
-    setUser(newUser);
-    localStorage.setItem('vora_user', JSON.stringify(newUser));
-    loadUserWorkouts(newUser.id);
+    // This is called by AuthModal after Supabase confirms the user
+    // We just need to trigger the UI update
+    console.log("Supabase login confirmed for:", email);
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await supabase.auth.signOut(); // REAL LOGOUT
     setUser(null);
     setSavedWorkouts([]);
     localStorage.removeItem('vora_user');
     setMode(null);
   };
+
+  // ... (Keep the rest of your renderContent and return logic exactly as it was)
 
   const renderContent = () => {
     switch (mode) {
