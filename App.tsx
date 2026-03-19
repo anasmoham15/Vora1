@@ -37,7 +37,7 @@ export default function App() {
       }
 
       // Listen for login/logout changes automatically
-      supabase.auth.onAuthStateChange((_event, session) => {
+      supabase.auth.onAuthStateChange((event, session) => {
         if (session?.user) {
           setUser({
             id: session.user.id,
@@ -45,8 +45,14 @@ export default function App() {
             role: 'free',
             createdAt: Date.now()
           });
+          
+          // 🔥 THE TIP: This ensures that as soon as the user logs in, 
+          // we immediately pull their data from the cloud.
+          loadUserWorkouts(session.user.id); 
+          
         } else {
           setUser(null);
+          setSavedWorkouts([]); // Clear the list so the next user doesn't see your data
         }
       });
     };
