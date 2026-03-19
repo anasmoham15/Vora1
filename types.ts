@@ -4,11 +4,30 @@ export interface Exercise {
   sets: string;
   reps: string;
   instructions: string[];
+  // These are required for the Video functionality to work
+  videoUrl?: string;
+  isVideoLoading?: boolean;
+  videoError?: string | null;
 }
 
 export interface WorkoutPlan {
   strategy: string;
   exercises: Exercise[];
+}
+
+export interface User {
+  id: string;
+  email?: string;
+}
+
+export interface SavedWorkout {
+  id: string;
+  userId: string;
+  timestamp: number;
+  bodyPart: string;
+  muscle: string;
+  environment: string;
+  plan: WorkoutPlan;
 }
 
 export interface WeeklyPlan {
