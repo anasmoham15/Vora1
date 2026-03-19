@@ -5,18 +5,13 @@ import type { WorkoutPlan, WeeklyPlan, WeeklyPlannerConfig, ExerciseDetail, Heal
 const getModel = () => {
   const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
   
-  // This will pop up a window on your site telling us if the key is there
+  // Debug check for browser console
   if (!apiKey) {
-    alert("DEBUG: The API Key is MISSING from the build!");
-  } else {
-    console.log("DEBUG: Key starts with:", apiKey.substring(0, 4));
+    console.error("❌ VITE_GEMINI_API_KEY is MISSING");
   }
 
   if (!apiKey) throw new Error("API Key Missing");
-  const genAI = new GoogleGenAI(apiKey);
-  return genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-};
-
+  
   try {
     const genAI = new GoogleGenAI(apiKey);
     return genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
@@ -47,7 +42,7 @@ export const generateWorkout = async (bodyPart: string, muscle: string, environm
 };
 
 /**
- * Health Analysis (THE MISSING PIECE for HealthCheck.tsx)
+ * Health Analysis
  */
 export const generateHealthAnalysis = async (answers: HealthQuizData, bmi: number | null, healthScore: number): Promise<string> => {
   try {
@@ -65,7 +60,7 @@ export const generateHealthAnalysis = async (answers: HealthQuizData, bmi: numbe
 };
 
 /**
- * Weekly Planner (Used by WeeklyPlanner.tsx)
+ * Weekly Planner
  */
 export const generateWeeklyPlan = async (config: WeeklyPlannerConfig): Promise<WeeklyPlan> => {
   try {
@@ -90,19 +85,24 @@ export const generateWeeklyPlan = async (config: WeeklyPlannerConfig): Promise<W
 };
 
 /**
- * Dictionary Search (Used by ExerciseDictionary.tsx)
+ * Dictionary Search
  */
 export const searchExerciseDetail = async (query: string): Promise<ExerciseDetail> => {
-  const model = getModel();
-  const prompt = `Provide details for: "${query}". Return JSON: name, muscleGroup, type, description.`;
+  try {
+    const model = getModel();
+    const prompt = `Provide details for: "${query}". Return JSON: name, muscleGroup, type, description.`;
 
-  const result = await model.generateContent({
-    contents: [{ role: 'user', parts: [{ text: prompt }] }],
-    generationConfig: { responseMimeType: "application/json" }
-  });
+    const result = await model.generateContent({
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      generationConfig: { responseMimeType: "application/json" }
+    });
 
-  const text = result.response.text();
-  const jsonMatch = text.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) throw new Error("No JSON found");
-  return JSON.parse(jsonMatch[0]);
+    const text = result.response.text();
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error("No JSON found");
+    return JSON.parse(jsonMatch[0]);
+  } catch (error) {
+    console.error("Dictionary Search Error:", error);
+    throw error;
+  }
 };
