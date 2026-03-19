@@ -1,0 +1,15 @@
+# IDEs
+.vscode/
+.idea/
+
+# Dependencies
+node_modules/
+
+# Environment Variables (CRITICAL)
+.env
+.env.local
+.env.*.local
+
+# Build output
+dist/
+build/
