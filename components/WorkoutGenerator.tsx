@@ -1,3 +1,4 @@
+import { supabase } from '../supabaseClient';
 import React, { useState, useMemo, useCallback } from 'react';
 import BodyPartSelector from './BodyPartSelector';
 import MuscleSelector from './MuscleSelector';
@@ -56,32 +57,56 @@ export default function WorkoutGenerator({ user, onSave }: WorkoutGeneratorProps
     }
   }, [selectedBodyPart, selectedMuscleId, selectedEnvironmentId]);
 
-  const handleSaveWorkout = () => {
+  const handleSaveWorkout = async () => {
+    // 1. Safety check
     if (!user || !workoutPlan) return;
-    setIsSaving(true);
     
+    setIsSaving(true);
+    setError(null);
+
     const muscle = selectedBodyPart?.muscles.find(m => m.id === selectedMuscleId);
     const environment = WORKOUT_ENVIRONMENTS.find(e => e.id === selectedEnvironmentId);
 
-    const savedWorkout: SavedWorkout = {
-      id: Math.random().toString(36).substring(7),
-      userId: user.id,
-      timestamp: Date.now(),
+    // 2. Prepare the data object
+    const savedWorkoutData = {
       bodyPart: selectedBodyPart?.name || 'Unknown',
       muscle: muscle?.name || 'Unknown',
       environment: environment?.name || 'Unknown',
       plan: workoutPlan
     };
 
-    const existing = JSON.parse(localStorage.getItem('vora_saved_workouts') || '[]');
-    localStorage.setItem('vora_saved_workouts', JSON.stringify([savedWorkout, ...existing]));
-    
-    onSave(savedWorkout);
-    
-    setTimeout(() => {
-      setIsSaving(false);
+    try {
+      // 3. Insert into Supabase Table
+      const { data, error: sbError } = await supabase
+        .from('saved_workouts')
+        .insert([
+          { 
+            user_id: user.id, 
+            payload: savedWorkoutData 
+          }
+        ])
+        .select()
+        .single();
+
+      if (sbError) throw sbError;
+
+      // 4. Update the local UI state so the "History" tab updates immediately
+      const savedWorkout: SavedWorkout = {
+        id: data.id, // Use the real ID from Supabase
+        userId: user.id,
+        timestamp: Date.now(),
+        ...savedWorkoutData
+      };
+
+      onSave(savedWorkout);
       setSaveSuccess(true);
-    }, 600);
+      
+    } catch (err: any) {
+      console.error("Save failed:", err.message);
+      setError("Failed to save workout to the cloud. Please try again.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   if (isLoading) return <Loader />;
