@@ -6,41 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>VORA | Intelligent Movement & Wellness</title>
 
-    <!-- FIX: Removed the importmap that pointed to aistudiocdn.com for React.
-         That CDN is for Google AI Studio's own environment and conflicts with
-         the npm packages installed via package.json. Vite handles all module
-         imports itself — no importmap needed here. -->
-
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
-
-      :root {
-        --bg-color: #050505;
-        --card-bg: #0f0f0f;
-        --accent-green: #10b981;
-      }
-
-      body {
-        font-family: 'Inter', sans-serif;
-        background-color: var(--bg-color);
-        color: #f5f5f5;
-        letter-spacing: -0.015em;
-        margin: 0;
-        overflow-x: hidden;
-      }
-
-      .tracking-tighter-custom { letter-spacing: -0.04em; }
-      .tracking-widest-custom { letter-spacing: 0.15em; }
-
-      .fade-enter { opacity: 0; transform: translateY(10px); }
-      .fade-enter-active { opacity: 1; transform: translateY(0); transition: opacity 400ms, transform 400ms; }
-
-      ::-webkit-scrollbar { width: 8px; }
-      ::-webkit-scrollbar-track { background: var(--bg-color); }
-      ::-webkit-scrollbar-thumb { background: #262626; border-radius: 10px; }
-      ::-webkit-scrollbar-thumb:hover { background: #404040; }
-    </style>
+    <!-- Tailwind CDN removed — now installed as a proper npm package.
+         Styles are imported via index.css in index.tsx -->
   </head>
   <body class="antialiased selection:bg-emerald-500/30">
     <div id="root"></div>
