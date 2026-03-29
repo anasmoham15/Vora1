@@ -1,10 +1,26 @@
+export interface Muscle {
+  name: string;
+  id: string;
+}
+
+export interface BodyPart {
+  name: string;
+  id: string;
+  muscles: Muscle[];
+}
+
+export interface Environment {
+  name: string;
+  id: string;
+  description: string;
+}
+
 export interface Exercise {
   name: string;
   description: string;
   sets: string;
   reps: string;
   instructions: string[];
-  // These are required for the Video functionality to work
   videoUrl?: string;
   isVideoLoading?: boolean;
   videoError?: string | null;
@@ -30,18 +46,20 @@ export interface SavedWorkout {
   plan: WorkoutPlan;
 }
 
+export interface DayPlan {
+  title: string;
+  activities: string[];
+}
+
 export interface WeeklyPlan {
-  [key: string]: {
-    title: string;
-    activities: string[];
-  };
+  [key: string]: DayPlan;
 }
 
 export interface WeeklyPlannerConfig {
   goal: string[];
   split: string;
   level: string;
-  daysPerWeek: number;
+  daysPerWeek: string; // FIX: was 'number' but is actually a string like "4 Days Per Week"
   environment: string;
 }
 
