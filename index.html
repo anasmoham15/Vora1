@@ -5,20 +5,16 @@
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>VORA | Intelligent Movement & Wellness</title>
+
+    <!-- FIX: Removed the importmap that pointed to aistudiocdn.com for React.
+         That CDN is for Google AI Studio's own environment and conflicts with
+         the npm packages installed via package.json. Vite handles all module
+         imports itself — no importmap needed here. -->
+
     <script src="https://cdn.tailwindcss.com"></script>
-    <script type="importmap">
-    {
-      "imports": {
-        "react": "https://aistudiocdn.com/react@^19.2.0",
-        "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
-        "react/": "https://aistudiocdn.com/react@^19.2.0/",
-        "@google/genai": "https://aistudiocdn.com/@google/genai@^1.29.1"
-      }
-    }
-    </script>
     <style>
       @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
-      
+
       :root {
         --bg-color: #050505;
         --card-bg: #0f0f0f;
@@ -34,34 +30,18 @@
         overflow-x: hidden;
       }
 
-      .tracking-tighter-custom {
-        letter-spacing: -0.04em;
-      }
+      .tracking-tighter-custom { letter-spacing: -0.04em; }
+      .tracking-widest-custom { letter-spacing: 0.15em; }
 
-      .tracking-widest-custom {
-        letter-spacing: 0.15em;
-      }
-
-      /* Transitions */
       .fade-enter { opacity: 0; transform: translateY(10px); }
       .fade-enter-active { opacity: 1; transform: translateY(0); transition: opacity 400ms, transform 400ms; }
 
-      /* Custom scrollbar */
-      ::-webkit-scrollbar {
-        width: 8px;
-      }
-      ::-webkit-scrollbar-track {
-        background: var(--bg-color);
-      }
-      ::-webkit-scrollbar-thumb {
-        background: #262626;
-        border-radius: 10px;
-      }
-      ::-webkit-scrollbar-thumb:hover {
-        background: #404040;
-      }
+      ::-webkit-scrollbar { width: 8px; }
+      ::-webkit-scrollbar-track { background: var(--bg-color); }
+      ::-webkit-scrollbar-thumb { background: #262626; border-radius: 10px; }
+      ::-webkit-scrollbar-thumb:hover { background: #404040; }
     </style>
-</head>
+  </head>
   <body class="antialiased selection:bg-emerald-500/30">
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
