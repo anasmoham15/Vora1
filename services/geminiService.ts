@@ -15,7 +15,9 @@ if (!API_KEY) {
 }
 
 const genAI = new GoogleGenerativeAI(API_KEY);
-const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+// FIX: Updated from gemini-1.5-flash to gemini-2.0-flash — faster, smarter,
+// and confirmed available on your API key (verified March 2026)
+const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
 
 // ─── Helper ──────────────────────────────────────────────────────────────────
 
