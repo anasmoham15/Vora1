@@ -3,7 +3,7 @@ import type { WorkoutPlan, HealthQuizData, WeeklyPlan, WeeklyPlannerConfig, Exer
 
 // FIX: Read the API key from the environment. Works both locally (.env.local)
 // and on Vercel (Environment Variables in project settings).
-const API_KEY = process.env.GEMINI_API_KEY || process.env.API_KEY || '';
+const API_KEY = (import.meta.env.VITE_GEMINI_API_KEY as string) || '';
 
 if (!API_KEY) {
   console.error(
